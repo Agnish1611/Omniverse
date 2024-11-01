@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 
-import Background from './scenes/Background';
+import Game from './scenes/Game';
 import Preloader from './scenes/Preloader';
 
 const config = {
@@ -14,7 +14,7 @@ const config = {
 			gravity: { y: 0 },
 		},
 	},
-	scene: [Preloader, Background],
+	scene: [Preloader, Game],
     scale: {
         zoom: 1
     }
