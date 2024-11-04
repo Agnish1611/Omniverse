@@ -5,9 +5,7 @@ export class RoomManager {
     rooms: Map<string, User[]> = new Map();
     static instance: RoomManager;
 
-    private constructor() {
-        this.rooms = new Map();
-    }
+    private constructor() {}
 
     static getInstance() {
         if (!this.instance) {
@@ -17,10 +15,9 @@ export class RoomManager {
     }
 
     public removeUser(user: User, spaceId: string) {
-        if (!this.rooms.has(spaceId)) {
-            return;
-        }
-        this.rooms.set(spaceId, (this.rooms.get(spaceId)?.filter((u) => u.id !== user.id) ?? []));
+        if (!this.rooms.has(spaceId)) return;
+        
+        this.rooms.set(spaceId, (this.rooms.get(spaceId)?.filter((u) => u.id !== user.id) || []));
     }
 
     public addUser(spaceId: string, user: User) {
@@ -28,17 +25,16 @@ export class RoomManager {
             this.rooms.set(spaceId, [user]);
             return;
         }
-        this.rooms.set(spaceId, [...(this.rooms.get(spaceId) ?? []), user])
+        this.rooms.get(spaceId)!.push(user);
     }
 
-    public broadcast(message: OutgoingMessage, user: User, roomId: string) {
-        if (!this.rooms.has(roomId)) {
-            return;
-        }
-        this.rooms.get(roomId)?.forEach((u) => {
-            if (u.id !== user.id) {
-                u.send(message);
+    public broadcast(message: OutgoingMessage, sender: User, spaceId: string) {
+        if (!this.rooms.has(spaceId)) return;
+
+        this.rooms.get(spaceId)!.forEach((user) => {
+            if (user.id !== sender.id) {
+                user.send(message);
             }
-        })
+        });
     }
 }
