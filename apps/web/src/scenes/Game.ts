@@ -4,7 +4,8 @@ export default class Game extends Phaser.Scene {
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private adam!: Phaser.Physics.Arcade.Sprite;
     private socket!: WebSocket;
-    private players: { [id: string]: Phaser.Physics.Arcade.Sprite } = {};
+    private adamLabel!: Phaser.GameObjects.Text;
+    private players: { [id: string]: { sprite: Phaser.Physics.Arcade.Sprite; label: Phaser.GameObjects.Text } } = {};
 
     constructor() {
         super('game');
@@ -26,6 +27,11 @@ export default class Game extends Phaser.Scene {
         this.adam.anims.play('adam-idle-down');
         this.physics.add.collider(this.adam, wallslayer);
         this.cameras.main.startFollow(this.adam, true);
+
+        this.adamLabel = this.add.text(this.adam.x, this.adam.y - 30, 'Me', {
+            fontSize: '14px',
+            color: '#000000'
+        }).setOrigin(0.5, 1);
 
         // Connect to WebSocket server
         this.connectToServer();
@@ -74,6 +80,9 @@ export default class Game extends Phaser.Scene {
 
     handleSpaceJoined(payload: any) {
         this.adam.setPosition(payload.spawn.x, payload.spawn.y);
+
+        this.adamLabel.setPosition(payload.spawn.x, payload.spawn.y - 30);
+
         payload.users.forEach((user: any) => {
             this.addOtherPlayer(user.id, user.x, user.y);
         });
@@ -82,21 +91,27 @@ export default class Game extends Phaser.Scene {
     addOtherPlayer(id: string, x: number, y: number) {
         const player = this.physics.add.sprite(x, y, 'adam', 'Adam_idle_anim_1.png');
         player.play('adam-idle-down');
-        this.players[id] = player;
+
+        const playerLabel = this.add.text(x, y - 20, id, { fontSize: '14px', color: '#000000' });
+        playerLabel.setOrigin(0.5, 1);
+
+        this.players[id] = { sprite: player, label: playerLabel };
     }
 
     moveOtherPlayer(id: string, x: number, y: number, direction: string) {
         const player = this.players[id];
         if (player) {
-            player.setPosition(x, y);
-            player.play(`adam-run-${direction}`, true);
+            const { sprite, label } = player;
+            sprite.setPosition(x, y);
+            sprite.play(`adam-run-${direction}`, true);
         }
     }
 
     removePlayer(id: string) {
         const player = this.players[id];
         if (player) {
-            player.destroy();
+            player.sprite.destroy();
+            player.label.destroy();
             delete this.players[id];
         }
     }
@@ -149,5 +164,11 @@ export default class Game extends Phaser.Scene {
         if (moved) {
             this.sendMovement(this.adam.x, this.adam.y, direction);
         }
+
+        this.adamLabel.setPosition(this.adam.x, this.adam.y - 30);
+
+        Object.values(this.players).forEach(({ sprite, label }) => {
+            label.setPosition(sprite.x, sprite.y - 20); // Keep the label above the sprite
+        });
     }
 }
