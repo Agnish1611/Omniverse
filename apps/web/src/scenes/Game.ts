@@ -21,10 +21,11 @@ export default class Game extends Phaser.Scene {
         const tileset = map.addTilesetImage('FloorAndGround', 'tiles');
         const basement = map.addTilesetImage('Basement', 'basement-objects');
         const generic = map.addTilesetImage('Generic', 'generic-objects');
+        const office = map.addTilesetImage('Modern_Office_Black_Shadow', 'office-objects');
 
-        map.createLayer('Ground', [tileset, basement]);
-        const wallslayer = map.createLayer('Walls', [tileset, basement, generic]).setDepth(1);
-        const tiles_layer_3 = map.createLayer('Tile Layer 3', [basement, generic, tileset]);
+        map.createLayer('Ground', [tileset, basement, office]);
+        const tiles_layer_3 = map.createLayer('Tile Layer 3', [basement, generic, tileset, office]);
+        const wallslayer = map.createLayer('Walls', [tileset, basement, generic, office]);
 
         wallslayer.setCollisionByProperty({ collision: true });
         tiles_layer_3.setCollisionByProperty({ collision: true });
