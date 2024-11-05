@@ -25,10 +25,12 @@ export default class Game extends Phaser.Scene {
 
         map.createLayer('Ground', [tileset, basement, office]);
         const tiles_layer_3 = map.createLayer('Tile Layer 3', [basement, generic, tileset, office]);
+        const tiles_layer_4 = map.createLayer('Tile Layer 4', [basement, generic, tileset, office]);
         const wallslayer = map.createLayer('Walls', [tileset, basement, generic, office]);
 
         wallslayer.setCollisionByProperty({ collision: true });
         tiles_layer_3.setCollisionByProperty({ collision: true });
+        tiles_layer_4.setCollisionByProperty({ collision: true });
 
         this.adam = this.physics.add.sprite(200, 200, 'adam', 'Adam_idle_anim_1.png');
         this.createAnimations();
