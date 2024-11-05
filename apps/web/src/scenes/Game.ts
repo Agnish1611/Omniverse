@@ -38,7 +38,7 @@ export default class Game extends Phaser.Scene {
         this.adamLabel = this.add.text(this.adam.x, this.adam.y - 30, 'Me', {
             fontSize: '14px',
             color: '#000000'
-        }).setOrigin(0.5, 1);
+        }).setOrigin(0.5, 1).setDepth(999);
 
         // Connect to WebSocket server
         this.connectToServer();
@@ -100,7 +100,7 @@ export default class Game extends Phaser.Scene {
         player.play('adam-idle-down');
 
         const playerLabel = this.add.text(x, y - 20, id, { fontSize: '14px', color: '#000000' });
-        playerLabel.setOrigin(0.5, 1);
+        playerLabel.setOrigin(0.5, 1).setDepth(999);
 
         this.players[id] = { sprite: player, label: playerLabel };
     }

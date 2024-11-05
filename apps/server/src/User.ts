@@ -31,8 +31,8 @@ export class User {
                 case 'join':
                     const spaceId = parsedData.payload.spaceId;
                     this.spaceId = spaceId;
-                    this.x = 200 + Math.floor(Math.random() * 100);
-                    this.y = 200 + Math.floor(Math.random() * 100);
+                    this.x = 190;
+                    this.y = 190;
 
                     // Add the user to the room
                     RoomManager.getInstance().addUser(spaceId, this);
