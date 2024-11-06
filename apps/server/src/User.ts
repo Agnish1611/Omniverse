@@ -76,6 +76,22 @@ export class User {
                         }
                     }, this, this.spaceId!);
                     break;
+                    case 'idle':
+                        // Update position and broadcast to others
+                        this.x = parsedData.payload.x;
+                        this.y = parsedData.payload.y;
+                        const idle_direction = parsedData.payload.direction;
+    
+                        RoomManager.getInstance().broadcast({
+                            type: 'user-idle',
+                            payload: {
+                                userId: this.id,  // Include the userId so clients know who moved
+                                x: this.x,
+                                y: this.y,
+                                direction: idle_direction
+                            }
+                        }, this, this.spaceId!);
+                        break;
             }
         });
     }

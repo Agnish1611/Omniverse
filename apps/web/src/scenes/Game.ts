@@ -6,9 +6,11 @@ export default class Game extends Phaser.Scene {
     private socket!: WebSocket;
     private adamLabel!: Phaser.GameObjects.Text;
     private players: { [id: string]: { sprite: Phaser.Physics.Arcade.Sprite; label: Phaser.GameObjects.Text } } = {};
+    private isJoined: boolean
 
     constructor() {
         super('game');
+        this.isJoined = false;
     }
 
     preload() {
@@ -84,6 +86,9 @@ export default class Game extends Phaser.Scene {
                 case 'user-left':
                     this.removePlayer(message.payload.userId);
                     break;
+                case 'user-idle':
+                    this.idleOtherPlayer(message.payload.userId, message.payload.x, message.payload.y, message.payload.direction);
+                    break;
             }
         };
     }
@@ -96,6 +101,8 @@ export default class Game extends Phaser.Scene {
         payload.users.forEach((user: any) => {
             this.addOtherPlayer(user.id, user.x, user.y);
         });
+
+        this.isJoined = true;
     }
 
     addOtherPlayer(id: string, x: number, y: number) {
@@ -117,6 +124,15 @@ export default class Game extends Phaser.Scene {
         }
     }
 
+    idleOtherPlayer(id: string, x: number, y: number, direction: string) {
+        const player = this.players[id];
+        if (player) {
+            const { sprite, label } = player;
+            sprite.setPosition(x, y);
+            sprite.play(`adam-idle-${direction}`, true);
+        }
+    }
+
     removePlayer(id: string) {
         const player = this.players[id];
         if (player) {
@@ -129,6 +145,13 @@ export default class Game extends Phaser.Scene {
     sendMovement(x: number, y: number, direction: string) {
         this.socket.send(JSON.stringify({
             type: 'move',
+            payload: { x, y, direction }
+        }));
+    }
+
+    sendIdle(x: number, y: number, direction: string) {
+        this.socket.send(JSON.stringify({
+            type: 'idle',
             payload: { x, y, direction }
         }));
     }
@@ -167,6 +190,7 @@ export default class Game extends Phaser.Scene {
             if (currentAnim) {
                 currentAnim[1] = 'idle';
                 this.adam.play(currentAnim.join('-'), true);
+                if (this.isJoined) this.sendIdle(this.adam.x, this.adam.y, currentAnim[2]);
             }
             this.adam.setVelocity(0, 0);
         }
