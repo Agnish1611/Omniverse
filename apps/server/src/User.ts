@@ -34,10 +34,8 @@ export class User {
                     this.x = 190;
                     this.y = 190;
 
-                    // Add the user to the room
                     RoomManager.getInstance().addUser(spaceId, this);
 
-                    // Send initial spawn and user list to this user
                     this.send({
                         type: "space-joined",
                         payload: {
@@ -45,11 +43,11 @@ export class User {
                             users: RoomManager.getInstance()
                                 .rooms.get(spaceId)
                                 ?.filter((u: User) => u.id !== this.id)
-                                .map((u: User) => ({ id: u.id, x: u.x, y: u.y })) || []
+                                .map((u: User) => ({ id: u.id, x: u.x, y: u.y })) || [],
+                            currentUser: this.id
                         }
                     });
 
-                    // Notify others in the room about the new user
                     RoomManager.getInstance().broadcast({
                         type: "user-joined",
                         payload: {
@@ -61,7 +59,6 @@ export class User {
                     break;
 
                 case 'move':
-                    // Update position and broadcast to others
                     this.x = parsedData.payload.x;
                     this.y = parsedData.payload.y;
                     const direction = parsedData.payload.direction;
@@ -69,29 +66,39 @@ export class User {
                     RoomManager.getInstance().broadcast({
                         type: 'move',
                         payload: {
-                            userId: this.id,  // Include the userId so clients know who moved
+                            userId: this.id,  
                             x: this.x,
                             y: this.y,
                             direction: direction,
                         }
                     }, this, this.spaceId!);
                     break;
-                    case 'idle':
-                        // Update position and broadcast to others
-                        this.x = parsedData.payload.x;
-                        this.y = parsedData.payload.y;
-                        const idle_direction = parsedData.payload.direction;
+                case 'idle':
+                    this.x = parsedData.payload.x;
+                    this.y = parsedData.payload.y;
+                    const idle_direction = parsedData.payload.direction;
     
-                        RoomManager.getInstance().broadcast({
-                            type: 'user-idle',
-                            payload: {
-                                userId: this.id,  // Include the userId so clients know who moved
-                                x: this.x,
-                                y: this.y,
-                                direction: idle_direction
-                            }
-                        }, this, this.spaceId!);
-                        break;
+                    RoomManager.getInstance().broadcast({
+                        type: 'user-idle',
+                        payload: {
+                            userId: this.id, 
+                            x: this.x,
+                            y: this.y,
+                            direction: idle_direction
+                        }
+                    }, this, this.spaceId!);
+                    break;
+                case 'chat-message':
+                    const text = parsedData.payload.text;
+                    const id = parsedData.payload.sender;
+        
+                    RoomManager.getInstance().broadcastAll({
+                        type: 'receive-message',
+                        payload: {
+                            id: id,
+                            text: text                        }
+                    }, this, this.spaceId!);
+                    break;
             }
         });
     }

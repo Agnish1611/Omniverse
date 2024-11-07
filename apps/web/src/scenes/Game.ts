@@ -1,4 +1,12 @@
+import { currentUserAtom } from '@/store/currentUser';
+import { messagesAtom } from '@/store/Messages';
 import Phaser from 'phaser';
+import { RecoilState, useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
+
+interface Message {
+    user: string,
+    text: string
+}
 
 export default class Game extends Phaser.Scene {
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -7,10 +15,16 @@ export default class Game extends Phaser.Scene {
     private adamLabel!: Phaser.GameObjects.Text;
     private players: { [id: string]: { sprite: Phaser.Physics.Arcade.Sprite; label: Phaser.GameObjects.Text } } = {};
     private isJoined: boolean
+    public messages: Message[]
+    private updateMessages: (message: Message) => void;
+    private setCurrentUser: (user: any) => void;
 
-    constructor() {
+    constructor(updateMessages: (message: Message) => void, setCurrentUser: (user: any) => void) {
         super('game');
         this.isJoined = false;
+        this.updateMessages = updateMessages;
+        this.setCurrentUser = setCurrentUser;
+        this.messages = [{user: '', text: ''}]
     }
 
     preload() {
@@ -46,6 +60,7 @@ export default class Game extends Phaser.Scene {
         }).setOrigin(0.5, 1).setDepth(999);
 
         // Connect to WebSocket server
+        this.serverSetup();
         this.connectToServer();
     }
 
@@ -60,8 +75,11 @@ export default class Game extends Phaser.Scene {
         this.anims.create({ key: 'adam-run-down', frames: this.anims.generateFrameNames('adam', { start: 19, end: 24, prefix: 'Adam_run_', suffix: '.png' }), repeat: -1, frameRate: 10 });
     }
 
-    connectToServer() {
+    serverSetup() {
         this.socket = new WebSocket('ws://localhost:3001');
+    }
+
+    connectToServer() {
 
         this.socket.onopen = () => {
             this.socket.send(JSON.stringify({
@@ -89,6 +107,9 @@ export default class Game extends Phaser.Scene {
                 case 'user-idle':
                     this.idleOtherPlayer(message.payload.userId, message.payload.x, message.payload.y, message.payload.direction);
                     break;
+                case 'receive-message':
+                    this.receiveMessage(message.payload.id, message.payload.text);
+                    break;
             }
         };
     }
@@ -103,6 +124,11 @@ export default class Game extends Phaser.Scene {
         });
 
         this.isJoined = true;
+
+        const currentUser = payload.currentUser;
+        this.setCurrentUser(currentUser);
+
+        this.sendMessage('has joined the room', currentUser);
     }
 
     addOtherPlayer(id: string, x: number, y: number) {
@@ -154,6 +180,24 @@ export default class Game extends Phaser.Scene {
             type: 'idle',
             payload: { x, y, direction }
         }));
+    }
+
+    sendMessage(text: string, id:string) {
+        this.socket.send(JSON.stringify({
+            type: 'chat-message',
+            payload: {
+                sender: id,
+                text
+            }
+        }));
+    }
+
+    receiveMessage(id: string, text: string) {
+        if (this.messages.length === 1) this.messages[0] = {user: id, text: text};
+        else this.messages.push({user: id, text: text});
+        console.log(this.messages);
+
+        this.updateMessages({user: id, text: text});
     }
 
     update(t: number, dt: number) {

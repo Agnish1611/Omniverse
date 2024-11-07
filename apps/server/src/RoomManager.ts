@@ -37,4 +37,12 @@ export class RoomManager {
             }
         });
     }
+
+    public broadcastAll(message: OutgoingMessage, sender: User, spaceId: string) {
+        if (!this.rooms.has(spaceId)) return;
+
+        this.rooms.get(spaceId)!.forEach((user) => {
+                user.send(message);
+        });
+    }
 }
