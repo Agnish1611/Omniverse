@@ -1,7 +1,4 @@
-import { currentUserAtom } from '@/store/currentUser';
-import { messagesAtom } from '@/store/Messages';
 import Phaser from 'phaser';
-import { RecoilState, useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 
 interface Message {
     user: string,
@@ -18,12 +15,14 @@ export default class Game extends Phaser.Scene {
     public messages: Message[]
     private updateMessages: (message: Message) => void;
     private setCurrentUser: (user: any) => void;
+    private setSocket: (socket: WebSocket) => void;
 
-    constructor(updateMessages: (message: Message) => void, setCurrentUser: (user: any) => void) {
+    constructor(updateMessages: (message: Message) => void, setCurrentUser: (user: any) => void, setSocket: (socket: WebSocket) => void) {
         super('game');
         this.isJoined = false;
         this.updateMessages = updateMessages;
         this.setCurrentUser = setCurrentUser;
+        this.setSocket = setSocket;
         this.messages = [{user: '', text: ''}]
     }
 
@@ -77,6 +76,7 @@ export default class Game extends Phaser.Scene {
 
     serverSetup() {
         this.socket = new WebSocket('ws://localhost:3001');
+        this.setSocket(this.socket);
     }
 
     connectToServer() {

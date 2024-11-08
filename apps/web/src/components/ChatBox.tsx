@@ -4,20 +4,32 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 import { messagesAtom } from '@/store/Messages';
 import { currentUserAtom } from '@/store/currentUser';
-import Game from '@/scenes/Game';
-import { updateMessages } from '@/messageHandler';
+import { socketAtom } from '@/store/socketAtom';
 
 const ChatBox = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [messages, setMessages] = useRecoilState(messagesAtom);
   const currentUser = useRecoilValue(currentUserAtom);
+  const socket = useRecoilValue(socketAtom);
 
   const toggleChatBox = () => {
     setIsOpen(!isOpen);
   };
 
-  const sendMessage = (message) => {
-    setMessages([...messages, { user: currentUser, text: message }]);
+  const sendMessage = (message: string) => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        // Send the message through the WebSocket connection
+        socket.send(JSON.stringify({
+          type: 'chat-message',
+          payload: {
+            sender: currentUser,
+            text: message,
+          }
+        }));
+  
+    } else {
+        console.error('WebSocket is not connected.');
+    }
   }
 
   useEffect(() => {
@@ -52,10 +64,10 @@ const ChatBox = () => {
                 type="text"
                 placeholder="Type your message..."
                 className="flex-1 px-3 py-1 text-xs text-white font-semibold rounded-xl bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-700"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && e.target.value) {
-                    sendMessage(e.target.value);
-                    e.target.value = '';
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === 'Enter' && (e.target as HTMLInputElement).value) {
+                    sendMessage((e.target as HTMLInputElement).value);
+                    (e.target as HTMLInputElement).value = '';
                   }
                 }}
               />

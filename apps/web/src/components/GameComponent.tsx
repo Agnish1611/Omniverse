@@ -32,10 +32,12 @@ import { updateMessages } from '../messageHandler';
 import Preloader from '@/scenes/Preloader';
 import { currentUserAtom } from '@/store/currentUser';
 import ChatBox from './ChatBox';
+import { socketAtom } from '@/store/socketAtom';
 
 const GameComponent: React.FC = () => {
     const setMessage = useSetRecoilState(messagesAtom);
     const setCurrentUser = useSetRecoilState(currentUserAtom);
+    const setSocket = useSetRecoilState(socketAtom);
 
     useEffect(() => {
         const config: Phaser.Types.Core.GameConfig = {
@@ -49,7 +51,7 @@ const GameComponent: React.FC = () => {
 					gravity: { y: 0 },
 				},
 			},
-            scene: [Preloader, new Game(updateMessages.bind(null, setMessage), setCurrentUser)], // Pass the updateMessages function to Game
+            scene: [Preloader, new Game(updateMessages.bind(null, setMessage), setCurrentUser, setSocket)], // Pass the updateMessages function to Game
         };
 
         const game = new Phaser.Game(config);
