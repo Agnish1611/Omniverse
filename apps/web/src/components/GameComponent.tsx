@@ -1,5 +1,5 @@
 import { useSetRecoilState } from 'recoil';
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback } from 'react';
 import Phaser from 'phaser';
 import Game from '../scenes/Game';
 import Preloader from '@/scenes/Preloader';
@@ -10,11 +10,14 @@ import { socketAtom } from '@/store/socketAtom';
 import { messagesAtom } from '@/store/messages';
 import { createMessage } from '@/messageHandler';
 
-const GameComponent: React.FC = () => {
+interface GameComponentProps {
+    playerName: string;
+}
+
+const GameComponent: React.FC<GameComponentProps> = ({ playerName }) => {
     const setMessage = useSetRecoilState(messagesAtom);
     const setCurrentUser = useSetRecoilState(currentUserAtom);
     const setSocket = useSetRecoilState(socketAtom);
-    const [gameInstance, setGameInstance] = useState<Phaser.Game | null>(null);
 
     // Create a wrapped update function that creates proper Message objects
     const updateMessages = useCallback((user: string, text: string) => {
@@ -22,16 +25,27 @@ const GameComponent: React.FC = () => {
         setMessage(prev => [...prev, message]);
     }, [setMessage]);
 
-    // Create a wrapped function to handle user updates
+    // Create a wrapped function to handle user ID updates (keeping the name from playerName)
     const handleSetCurrentUser = useCallback((userId: string) => {
-        const user: User = {
-            id: userId,
-            name: userId, // Using userId as name for now, could be improved
-        };
-        setCurrentUser(user);
-    }, [setCurrentUser]);
+        console.log('handleSetCurrentUser called with userId:', userId);
+        setCurrentUser(prevUser => {
+            const newUser = {
+                id: userId,
+                name: prevUser?.name || playerName, // Keep existing name or use playerName
+            };
+            console.log('Setting user:', newUser);
+            return newUser;
+        });
+    }, [playerName]);
 
     useEffect(() => {
+        // Set the initial user with the player name
+        const initialUser: User = {
+            id: '', // Will be set by the server
+            name: playerName,
+        };
+        setCurrentUser(initialUser);
+
         const config: Phaser.Types.Core.GameConfig = {
             type: Phaser.AUTO,
             parent: 'game-container',
@@ -43,17 +57,15 @@ const GameComponent: React.FC = () => {
                     gravity: { x: 0, y: 0 },
                 },
             },
-            scene: [Preloader, Background, new Game(updateMessages, handleSetCurrentUser, setSocket)],
+            scene: [Preloader, Background, new Game(updateMessages, handleSetCurrentUser, setSocket, playerName)],
         };
 
         const game = new Phaser.Game(config);
-        setGameInstance(game);
 
         // Cleanup function to destroy the game when component unmounts
         return () => {
             if (game) {
                 game.destroy(true);
-                setGameInstance(null);
             }
         };
     }, [updateMessages, handleSetCurrentUser, setSocket]);
@@ -63,7 +75,7 @@ const GameComponent: React.FC = () => {
             id="game-container" 
             className="relative w-full h-full"
         >
-            <ChatBox gameInstance={gameInstance} />
+            <ChatBox />
         </div>
     );
 };

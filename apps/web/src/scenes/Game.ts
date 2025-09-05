@@ -5,11 +5,12 @@ import { Message } from '@/store/messages';
 interface WebSocketPayload {
     spaceId?: string;
     userId?: string;
+    userName?: string;
     x?: number;
     y?: number;
     direction?: string;
     spawn?: { x: number; y: number };
-    users?: Array<{ id: string; x: number; y: number }>;
+    users?: Array<{ id: string; name: string; x: number; y: number }>;
     currentUser?: string;
     id?: string;
     text?: string;
@@ -22,21 +23,25 @@ export default class Game extends Phaser.Scene {
     private socket!: WebSocket;
     private adamLabel!: Phaser.GameObjects.Text;
     private players: { [id: string]: { sprite: Phaser.Physics.Arcade.Sprite; label: Phaser.GameObjects.Text } } = {};
+    private joinedUsers: Set<string> = new Set(); // Track users who have already joined
     private isJoined: boolean = false;
     public messages: Message[] = [];
     private updateMessages: (user: string, text: string) => void;
     private setCurrentUser: (user: string) => void;
     private setSocket: (socket: WebSocket) => void;
+    private playerName: string;
 
     constructor(
         updateMessages: (user: string, text: string) => void, 
         setCurrentUser: (user: string) => void, 
-        setSocket: (socket: WebSocket) => void
+        setSocket: (socket: WebSocket) => void,
+        playerName: string
     ) {
         super('game');
         this.updateMessages = updateMessages;
         this.setCurrentUser = setCurrentUser;
         this.setSocket = setSocket;
+        this.playerName = playerName;
     }
 
     preload() {
@@ -111,7 +116,7 @@ export default class Game extends Phaser.Scene {
         
         this.cameras.main.startFollow(this.adam, true);
 
-        this.adamLabel = this.add.text(this.adam.x, this.adam.y - 30, 'Me', {
+        this.adamLabel = this.add.text(this.adam.x, this.adam.y - 30, this.playerName, {
             fontSize: '14px',
             color: '#000000'
         }).setOrigin(0.5, 1).setDepth(150); // Higher than player
@@ -139,6 +144,13 @@ export default class Game extends Phaser.Scene {
 
     connectToServer() {
         this.socket.onopen = () => {
+            // First, send the user's name
+            this.socket.send(JSON.stringify({
+                type: 'set-name',
+                payload: { name: this.playerName }
+            }));
+            
+            // Then join the space
             this.socket.send(JSON.stringify({
                 type: 'join',
                 payload: { spaceId: 'office' }
@@ -154,10 +166,27 @@ export default class Game extends Phaser.Scene {
                         this.handleSpaceJoined(message.payload);
                         break;
                     case 'user-joined':
+                        console.log('Received user-joined message:', message.payload);
                         if (message.payload?.userId && 
                             typeof message.payload.x === 'number' && 
                             typeof message.payload.y === 'number') {
-                            this.addOtherPlayer(message.payload.userId, message.payload.x, message.payload.y);
+                            const userName = message.payload.userName || message.payload.userId;
+                            const userId = message.payload.userId;
+                            
+                            // Only add player and show message if they don't already exist
+                            if (!this.players[userId]) {
+                                console.log('Adding new player for:', userName);
+                                this.addOtherPlayer(userId, message.payload.x, message.payload.y, userName);
+                            }
+                            
+                            // Only show join message if we haven't shown it for this user before
+                            if (!this.joinedUsers.has(userId)) {
+                                console.log('Showing join message for:', userName);
+                                this.joinedUsers.add(userId);
+                                this.updateMessages(userName, 'has joined the room');
+                            } else {
+                                console.log('Join message already shown for:', userName);
+                            }
                         }
                         break;
                     case 'move':
@@ -212,7 +241,7 @@ export default class Game extends Phaser.Scene {
         if (payload.users && Array.isArray(payload.users)) {
             payload.users.forEach((user) => {
                 if (user.id && typeof user.x === 'number' && typeof user.y === 'number') {
-                    this.addOtherPlayer(user.id, user.x, user.y);
+                    this.addOtherPlayer(user.id, user.x, user.y, user.name);
                 }
             });
         }
@@ -220,19 +249,25 @@ export default class Game extends Phaser.Scene {
         this.isJoined = true;
 
         if (payload.currentUser && typeof payload.currentUser === 'string') {
+            // Only update the user ID, don't override the name
             this.setCurrentUser(payload.currentUser);
-            this.sendMessage('has joined the room', payload.currentUser);
+            // Remove the duplicate join message - it should come from server broadcast
         }
     }
 
-    addOtherPlayer(id: string, x: number, y: number) {
+    addOtherPlayer(id: string, x: number, y: number, userName?: string) {
+        console.log('addOtherPlayer called:', { id, x, y, userName });
+        
         const player = this.physics.add.sprite(x, y, 'adam', 'Adam_idle_anim_1.png');
         player.play('adam-idle-down');
+        player.setDepth(100); // Make sure it's visible
 
-        const playerLabel = this.add.text(x, y - 20, id, { fontSize: '14px', color: '#000000' });
+        const displayName = userName || id;
+        const playerLabel = this.add.text(x, y - 20, displayName, { fontSize: '14px', color: '#000000' });
         playerLabel.setOrigin(0.5, 1).setDepth(999);
 
         this.players[id] = { sprite: player, label: playerLabel };
+        console.log('Player added:', this.players[id]);
     }
 
     moveOtherPlayer(id: string, x: number, y: number, direction: string) {
@@ -259,6 +294,7 @@ export default class Game extends Phaser.Scene {
             player.sprite.destroy();
             player.label.destroy();
             delete this.players[id];
+            this.joinedUsers.delete(id); // Remove from joined users set
         }
     }
 
@@ -288,7 +324,10 @@ export default class Game extends Phaser.Scene {
 
     receiveMessage(id: string, text: string) {
         console.log(`Received message from ${id}: ${text}`);
-        this.updateMessages(id, text);
+        // Only update messages if it's not from the current user (to prevent duplicates)
+        if (id !== this.playerName) {
+            this.updateMessages(id, text);
+        }
     }
 
     override update(_time: number, _delta: number) {

@@ -13,12 +13,14 @@ function generateRandomId(length: number) {
 
 export class User {
     public id: string;
+    public name: string;
     private spaceId?: string;
     public x: number;
     public y: number;
 
     constructor(private ws: WebSocket) {
         this.id = generateRandomId(10);
+        this.name = this.id; // Default to ID, will be updated when user sets name
         this.x = 0;
         this.y = 0;
         this.initHandlers();
@@ -28,6 +30,10 @@ export class User {
         this.ws.on("message", (data) => {
             const parsedData = JSON.parse(data.toString());
             switch (parsedData.type) {
+                case 'set-name':
+                    this.name = parsedData.payload.name;
+                    break;
+                    
                 case 'join':
                     const spaceId = parsedData.payload.spaceId;
                     this.spaceId = spaceId;
@@ -43,7 +49,7 @@ export class User {
                             users: RoomManager.getInstance()
                                 .rooms.get(spaceId)
                                 ?.filter((u: User) => u.id !== this.id)
-                                .map((u: User) => ({ id: u.id, x: u.x, y: u.y })) || [],
+                                .map((u: User) => ({ id: u.id, name: u.name, x: u.x, y: u.y })) || [],
                             currentUser: this.id
                         }
                     });
@@ -52,6 +58,7 @@ export class User {
                         type: "user-joined",
                         payload: {
                             userId: this.id,
+                            userName: this.name,
                             x: this.x,
                             y: this.y
                         }
