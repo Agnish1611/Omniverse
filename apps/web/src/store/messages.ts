@@ -1,11 +1,14 @@
 import { atom } from "recoil";
 
-interface Message {
-    user: string,
-    text: string
+export interface Message {
+  id: string;
+  user: string;
+  text: string;
+  timestamp: Date;
+  type?: 'chat' | 'system' | 'join' | 'leave';
 }
 
-export const messagesAtom = atom({
-    key: 'messagesAtom',
-    default: [] as Message[]
-})
+export const messagesAtom = atom<Message[]>({
+  key: "messagesAtom",
+  default: [],
+});

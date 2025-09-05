@@ -1,33 +1,49 @@
 import Phaser from 'phaser';
+import { Message } from '@/store/messages';
 
-interface Message {
-    user: string,
-    text: string
+// Define WebSocket message types for better type safety
+interface WebSocketPayload {
+    spaceId?: string;
+    userId?: string;
+    x?: number;
+    y?: number;
+    direction?: string;
+    spawn?: { x: number; y: number };
+    users?: Array<{ id: string; x: number; y: number }>;
+    currentUser?: string;
+    id?: string;
+    text?: string;
+    sender?: string;
 }
 
 export default class Game extends Phaser.Scene {
-    private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+    private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     private adam!: Phaser.Physics.Arcade.Sprite;
     private socket!: WebSocket;
     private adamLabel!: Phaser.GameObjects.Text;
     private players: { [id: string]: { sprite: Phaser.Physics.Arcade.Sprite; label: Phaser.GameObjects.Text } } = {};
-    private isJoined: boolean
-    public messages: Message[]
-    private updateMessages: (message: Message) => void;
-    private setCurrentUser: (user: any) => void;
+    private isJoined: boolean = false;
+    public messages: Message[] = [];
+    private updateMessages: (user: string, text: string) => void;
+    private setCurrentUser: (user: string) => void;
     private setSocket: (socket: WebSocket) => void;
 
-    constructor(updateMessages: (message: Message) => void, setCurrentUser: (user: any) => void, setSocket: (socket: WebSocket) => void) {
+    constructor(
+        updateMessages: (user: string, text: string) => void, 
+        setCurrentUser: (user: string) => void, 
+        setSocket: (socket: WebSocket) => void
+    ) {
         super('game');
-        this.isJoined = false;
         this.updateMessages = updateMessages;
         this.setCurrentUser = setCurrentUser;
         this.setSocket = setSocket;
-        this.messages = [{user: '', text: ''}]
     }
 
     preload() {
-        this.cursors = this.input.keyboard.createCursorKeys();
+        const keyboard = this.input.keyboard;
+        if (keyboard) {
+            this.cursors = keyboard.createCursorKeys();
+        }
     }
 
     create() {
@@ -38,19 +54,40 @@ export default class Game extends Phaser.Scene {
         const generic = map.addTilesetImage('Generic', 'generic-objects');
         const office = map.addTilesetImage('Modern_Office_Black_Shadow', 'office-objects');
 
-        map.createLayer('Ground', [tileset, basement, office]);
-        const tiles_layer_3 = map.createLayer('Tile Layer 3', [basement, generic, tileset, office]);
-        const tiles_layer_4 = map.createLayer('Tile Layer 4', [basement, generic, tileset, office]);
-        const wallslayer = map.createLayer('Walls', [tileset, basement, generic, office]);
+        // Check if all tilesets loaded successfully
+        if (!tileset || !basement || !generic || !office) {
+            console.error('Failed to load one or more tilesets');
+            return;
+        }
 
-        wallslayer.setCollisionByProperty({ collision: true });
-        tiles_layer_3.setCollisionByProperty({ collision: true });
-        tiles_layer_4.setCollisionByProperty({ collision: true });
+        const tilesets = [tileset, basement, office];
+        const allTilesets = [basement, generic, tileset, office];
+
+        map.createLayer('Ground', tilesets);
+        const tiles_layer_3 = map.createLayer('Tile Layer 3', allTilesets);
+        const tiles_layer_4 = map.createLayer('Tile Layer 4', allTilesets);
+        const wallslayer = map.createLayer('Walls', allTilesets);
+
+        // Set collision properties with null checks
+        if (wallslayer) {
+            wallslayer.setCollisionByProperty({ collision: true });
+        }
+        if (tiles_layer_3) {
+            tiles_layer_3.setCollisionByProperty({ collision: true });
+        }
+        if (tiles_layer_4) {
+            tiles_layer_4.setCollisionByProperty({ collision: true });
+        }
 
         this.adam = this.physics.add.sprite(200, 200, 'adam', 'Adam_idle_anim_1.png');
         this.createAnimations();
         this.adam.anims.play('adam-idle-down');
-        this.physics.add.collider(this.adam, wallslayer);
+        
+        // Add collider only if wallslayer exists
+        if (wallslayer) {
+            this.physics.add.collider(this.adam, wallslayer);
+        }
+        
         this.cameras.main.startFollow(this.adam, true);
 
         this.adamLabel = this.add.text(this.adam.x, this.adam.y - 30, 'Me', {
@@ -80,7 +117,6 @@ export default class Game extends Phaser.Scene {
     }
 
     connectToServer() {
-
         this.socket.onopen = () => {
             this.socket.send(JSON.stringify({
                 type: 'join',
@@ -89,46 +125,83 @@ export default class Game extends Phaser.Scene {
         };
 
         this.socket.onmessage = (event) => {
-            const message = JSON.parse(event.data);
-
-            switch (message.type) {
-                case 'space-joined':
-                    this.handleSpaceJoined(message.payload);
-                    break;
-                case 'user-joined':
-                    this.addOtherPlayer(message.payload.userId, message.payload.x, message.payload.y);
-                    break;
-                case 'move':
-                    this.moveOtherPlayer(message.payload.userId, message.payload.x, message.payload.y, message.payload.direction);
-                    break;
-                case 'user-left':
-                    this.removePlayer(message.payload.userId);
-                    break;
-                case 'user-idle':
-                    this.idleOtherPlayer(message.payload.userId, message.payload.x, message.payload.y, message.payload.direction);
-                    break;
-                case 'receive-message':
-                    this.receiveMessage(message.payload.id, message.payload.text);
-                    break;
+            try {
+                const message = JSON.parse(event.data);
+                
+                switch (message.type) {
+                    case 'space-joined':
+                        this.handleSpaceJoined(message.payload);
+                        break;
+                    case 'user-joined':
+                        if (message.payload?.userId && 
+                            typeof message.payload.x === 'number' && 
+                            typeof message.payload.y === 'number') {
+                            this.addOtherPlayer(message.payload.userId, message.payload.x, message.payload.y);
+                        }
+                        break;
+                    case 'move':
+                        if (message.payload?.userId && 
+                            typeof message.payload.x === 'number' && 
+                            typeof message.payload.y === 'number' && 
+                            message.payload.direction) {
+                            this.moveOtherPlayer(message.payload.userId, message.payload.x, message.payload.y, message.payload.direction);
+                        }
+                        break;
+                    case 'user-left':
+                        if (message.payload?.userId) {
+                            this.removePlayer(message.payload.userId);
+                        }
+                        break;
+                    case 'user-idle':
+                        if (message.payload?.userId && 
+                            typeof message.payload.x === 'number' && 
+                            typeof message.payload.y === 'number' && 
+                            message.payload.direction) {
+                            this.idleOtherPlayer(message.payload.userId, message.payload.x, message.payload.y, message.payload.direction);
+                        }
+                        break;
+                    case 'receive-message':
+                        if (message.payload?.id && message.payload?.text) {
+                            this.receiveMessage(message.payload.id, message.payload.text);
+                        }
+                        break;
+                    default:
+                        console.warn('Unknown message type:', message.type);
+                }
+            } catch (error) {
+                console.error('Error parsing WebSocket message:', error);
             }
+        };
+
+        this.socket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
+        this.socket.onclose = () => {
+            console.log('WebSocket connection closed');
         };
     }
 
-    handleSpaceJoined(payload: any) {
-        this.adam.setPosition(payload.spawn.x, payload.spawn.y);
+    handleSpaceJoined(payload: WebSocketPayload) {
+        if (payload.spawn && typeof payload.spawn.x === 'number' && typeof payload.spawn.y === 'number') {
+            this.adam.setPosition(payload.spawn.x, payload.spawn.y);
+            this.adamLabel.setPosition(payload.spawn.x, payload.spawn.y - 30);
+        }
 
-        this.adamLabel.setPosition(payload.spawn.x, payload.spawn.y - 30);
-
-        payload.users.forEach((user: any) => {
-            this.addOtherPlayer(user.id, user.x, user.y);
-        });
+        if (payload.users && Array.isArray(payload.users)) {
+            payload.users.forEach((user) => {
+                if (user.id && typeof user.x === 'number' && typeof user.y === 'number') {
+                    this.addOtherPlayer(user.id, user.x, user.y);
+                }
+            });
+        }
 
         this.isJoined = true;
 
-        const currentUser = payload.currentUser;
-        this.setCurrentUser(currentUser);
-
-        this.sendMessage('has joined the room', currentUser);
+        if (payload.currentUser && typeof payload.currentUser === 'string') {
+            this.setCurrentUser(payload.currentUser);
+            this.sendMessage('has joined the room', payload.currentUser);
+        }
     }
 
     addOtherPlayer(id: string, x: number, y: number) {
@@ -144,7 +217,7 @@ export default class Game extends Phaser.Scene {
     moveOtherPlayer(id: string, x: number, y: number, direction: string) {
         const player = this.players[id];
         if (player) {
-            const { sprite, label } = player;
+            const { sprite } = player;
             sprite.setPosition(x, y);
             sprite.play(`adam-run-${direction}`, true);
         }
@@ -153,7 +226,7 @@ export default class Game extends Phaser.Scene {
     idleOtherPlayer(id: string, x: number, y: number, direction: string) {
         const player = this.players[id];
         if (player) {
-            const { sprite, label } = player;
+            const { sprite } = player;
             sprite.setPosition(x, y);
             sprite.play(`adam-idle-${direction}`, true);
         }
@@ -193,14 +266,11 @@ export default class Game extends Phaser.Scene {
     }
 
     receiveMessage(id: string, text: string) {
-        if (this.messages.length === 1) this.messages[0] = {user: id, text: text};
-        else this.messages.push({user: id, text: text});
-        console.log(this.messages);
-
-        this.updateMessages({user: id, text: text});
+        console.log(`Received message from ${id}: ${text}`);
+        this.updateMessages(id, text);
     }
 
-    update(t: number, dt: number) {
+    override update(_time: number, _delta: number) {
         if (!this.cursors || !this.adam) {
             return;
         }
