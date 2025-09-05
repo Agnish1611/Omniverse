@@ -7,7 +7,11 @@ import { currentUserAtom } from '@/store/currentUser';
 import { socketAtom } from '@/store/socketAtom';
 import { createMessage, createWebSocketMessage } from '@/messageHandler';
 
-const ChatBox: React.FC = () => {
+interface ChatBoxProps {
+  gameInstance?: Phaser.Game | null;
+}
+
+const ChatBox: React.FC<ChatBoxProps> = () => {
   const [isOpen, setIsOpen] = useState<boolean>(true);
   const [inputValue, setInputValue] = useState<string>('');
   const [messages, setMessages] = useRecoilState(messagesAtom);
@@ -81,7 +85,7 @@ const ChatBox: React.FC = () => {
   return (
     <div className="fixed bottom-0 left-0 z-10">
       {/* Chat toggle button */}
-      <div className="mb-4 ml-4">
+      <div className="mb-4 ml-4 flex gap-2">
         <Button 
           onClick={toggleChatBox} 
           className="bg-transparent hover:bg-transparent hover:scale-110 transition-transform"

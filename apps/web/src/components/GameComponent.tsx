@@ -1,8 +1,9 @@
 import { useSetRecoilState } from 'recoil';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import Phaser from 'phaser';
 import Game from '../scenes/Game';
 import Preloader from '@/scenes/Preloader';
+import Background from '@/scenes/Background';
 import { currentUserAtom, User } from '@/store/currentUser';
 import ChatBox from './ChatBox';
 import { socketAtom } from '@/store/socketAtom';
@@ -13,6 +14,7 @@ const GameComponent: React.FC = () => {
     const setMessage = useSetRecoilState(messagesAtom);
     const setCurrentUser = useSetRecoilState(currentUserAtom);
     const setSocket = useSetRecoilState(socketAtom);
+    const [gameInstance, setGameInstance] = useState<Phaser.Game | null>(null);
 
     // Create a wrapped update function that creates proper Message objects
     const updateMessages = useCallback((user: string, text: string) => {
@@ -41,22 +43,27 @@ const GameComponent: React.FC = () => {
                     gravity: { x: 0, y: 0 },
                 },
             },
-            scene: [Preloader, new Game(updateMessages, handleSetCurrentUser, setSocket)],
+            scene: [Preloader, Background, new Game(updateMessages, handleSetCurrentUser, setSocket)],
         };
 
         const game = new Phaser.Game(config);
+        setGameInstance(game);
 
         // Cleanup function to destroy the game when component unmounts
         return () => {
             if (game) {
                 game.destroy(true);
+                setGameInstance(null);
             }
         };
     }, [updateMessages, handleSetCurrentUser, setSocket]);
 
     return (
-        <div id="game-container" className="relative w-full h-full">
-            <ChatBox />
+        <div 
+            id="game-container" 
+            className="relative w-full h-full"
+        >
+            <ChatBox gameInstance={gameInstance} />
         </div>
     );
 };

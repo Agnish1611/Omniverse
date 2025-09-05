@@ -47,6 +47,10 @@ export default class Game extends Phaser.Scene {
     }
 
     create() {
+        // Make this scene's camera background transparent so the background scene shows through
+        this.cameras.main.setBackgroundColor('rgba(0, 0, 0, 0)');
+        console.log('Game scene camera set to transparent');
+        
         const map = this.make.tilemap({ key: 'office' });
 
         const tileset = map.addTilesetImage('FloorAndGround', 'tiles');
@@ -63,10 +67,26 @@ export default class Game extends Phaser.Scene {
         const tilesets = [tileset, basement, office];
         const allTilesets = [basement, generic, tileset, office];
 
-        map.createLayer('Ground', tilesets);
+        // Create layers with appropriate depth values
+        const groundLayer = map.createLayer('Ground', tilesets);
+        if (groundLayer) {
+            groundLayer.setDepth(20);
+        }
+        
         const tiles_layer_3 = map.createLayer('Tile Layer 3', allTilesets);
+        if (tiles_layer_3) {
+            tiles_layer_3.setDepth(30);
+        }
+        
         const tiles_layer_4 = map.createLayer('Tile Layer 4', allTilesets);
+        if (tiles_layer_4) {
+            tiles_layer_4.setDepth(40);
+        }
+        
         const wallslayer = map.createLayer('Walls', allTilesets);
+        if (wallslayer) {
+            wallslayer.setDepth(50);
+        }
 
         // Set collision properties with null checks
         if (wallslayer) {
@@ -80,6 +100,7 @@ export default class Game extends Phaser.Scene {
         }
 
         this.adam = this.physics.add.sprite(200, 200, 'adam', 'Adam_idle_anim_1.png');
+        this.adam.setDepth(100); // Set player depth higher than environment
         this.createAnimations();
         this.adam.anims.play('adam-idle-down');
         
@@ -93,7 +114,7 @@ export default class Game extends Phaser.Scene {
         this.adamLabel = this.add.text(this.adam.x, this.adam.y - 30, 'Me', {
             fontSize: '14px',
             color: '#000000'
-        }).setOrigin(0.5, 1).setDepth(999);
+        }).setOrigin(0.5, 1).setDepth(150); // Higher than player
 
         // Connect to WebSocket server
         this.serverSetup();
