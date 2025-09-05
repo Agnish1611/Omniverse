@@ -12,9 +12,10 @@ import { createMessage } from '@/messageHandler';
 
 interface GameComponentProps {
     playerName: string;
+    selectedCharacter: string;
 }
 
-const GameComponent: React.FC<GameComponentProps> = ({ playerName }) => {
+const GameComponent: React.FC<GameComponentProps> = ({ playerName, selectedCharacter }) => {
     const setMessage = useSetRecoilState(messagesAtom);
     const setCurrentUser = useSetRecoilState(currentUserAtom);
     const setSocket = useSetRecoilState(socketAtom);
@@ -57,7 +58,7 @@ const GameComponent: React.FC<GameComponentProps> = ({ playerName }) => {
                     gravity: { x: 0, y: 0 },
                 },
             },
-            scene: [Preloader, Background, new Game(updateMessages, handleSetCurrentUser, setSocket, playerName)],
+            scene: [Preloader, Background, new Game(updateMessages, handleSetCurrentUser, setSocket, playerName, selectedCharacter)],
         };
 
         const game = new Phaser.Game(config);

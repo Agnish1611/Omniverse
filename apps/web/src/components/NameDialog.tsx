@@ -3,12 +3,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 interface NameDialogProps {
-  onNameSubmit: (name: string) => void;
+  onNameSubmit: (name: string, character: string) => void;
 }
 
 const NameDialog: React.FC<NameDialogProps> = ({ onNameSubmit }) => {
   const [name, setName] = useState<string>('');
+  const [selectedCharacter, setSelectedCharacter] = useState<string>('adam');
   const [error, setError] = useState<string>('');
+
+  const characters = [
+    { id: 'adam', name: 'Adam', preview: '/assets/character/single/Adam_idle_anim_1.png' },
+    { id: 'ash', name: 'Ash', preview: '/assets/character/single/Ash_idle_anim_1.png' },
+    { id: 'lucy', name: 'Lucy', preview: '/assets/character/single/Lucy_idle_anim_1.png' },
+    { id: 'nancy', name: 'Nancy', preview: '/assets/character/single/Nancy_idle_anim_1.png' }
+  ];
 
   const handleSubmit = useCallback(() => {
     const trimmedName = name.trim();
@@ -34,8 +42,8 @@ const NameDialog: React.FC<NameDialogProps> = ({ onNameSubmit }) => {
       return;
     }
     
-    onNameSubmit(trimmedName);
-  }, [name, onNameSubmit]);
+    onNameSubmit(trimmedName, selectedCharacter);
+  }, [name, selectedCharacter, onNameSubmit]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -52,7 +60,7 @@ const NameDialog: React.FC<NameDialogProps> = ({ onNameSubmit }) => {
           <p className="text-gray-600">Enter your name to join the virtual world</p>
         </CardHeader>
         
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div>
             <label htmlFor="playerName" className="block text-sm font-medium text-gray-700 mb-2">
               Your Name
@@ -74,6 +82,40 @@ const NameDialog: React.FC<NameDialogProps> = ({ onNameSubmit }) => {
             {error && (
               <p className="text-red-500 text-sm mt-1">{error}</p>
             )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Choose Your Character
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {characters.map((character) => (
+                <div
+                  key={character.id}
+                  onClick={() => setSelectedCharacter(character.id)}
+                  className={`relative p-3 border-2 rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                    selectedCharacter === character.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-center">
+                    <img
+                      src={character.preview}
+                      alt={character.name}
+                      className="w-12 h-12 mx-auto mb-2 pixelated"
+                      style={{ imageRendering: 'pixelated' }}
+                    />
+                    <p className="text-sm font-medium text-gray-700">{character.name}</p>
+                  </div>
+                  {selectedCharacter === character.id && (
+                    <div className="absolute top-1 right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
           
           <div className="flex justify-center pt-2">

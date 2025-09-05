@@ -4,10 +4,12 @@ import NameDialog from "./components/NameDialog"
 
 function App() {
   const [playerName, setPlayerName] = useState<string>('');
+  const [selectedCharacter, setSelectedCharacter] = useState<string>('');
   const [showGame, setShowGame] = useState<boolean>(false);
 
-  const handleNameSubmit = useCallback((name: string) => {
+  const handleNameSubmit = useCallback((name: string, character: string) => {
     setPlayerName(name);
+    setSelectedCharacter(character);
     setShowGame(true);
   }, []);
 
@@ -21,7 +23,7 @@ function App() {
       height: '100vh', 
       position: 'relative'
     }}>
-      <GameComponent playerName={playerName} />
+      <GameComponent playerName={playerName} selectedCharacter={selectedCharacter} />
     </div>
   )
 }

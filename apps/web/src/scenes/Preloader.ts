@@ -25,6 +25,9 @@ export default class Preloader extends Phaser.Scene {
 
         // Character assets
         this.load.atlas('adam', 'assets/character/adam.png', 'assets/character/adam.json');
+        this.load.atlas('ash', 'assets/character/ash.png', 'assets/character/ash.json');
+        this.load.atlas('lucy', 'assets/character/lucy.png', 'assets/character/lucy.json');
+        this.load.atlas('nancy', 'assets/character/nancy.png', 'assets/character/nancy.json');
 
         // Background assets
         this.load.image('backdrop-day', 'assets/background/backdrop_day.png');
@@ -38,6 +41,9 @@ export default class Preloader extends Phaser.Scene {
 
     create() {
         console.log('Preloader create() - launching scenes...');
+        
+        // Log all available textures to verify character assets are loaded
+        console.log('Available textures:', this.textures.getTextureKeys());
         
         // Launch both background and game scenes in parallel
         this.scene.launch('background');
